@@ -3,6 +3,7 @@ var earthData = {
 	, circular: 0.0
 	, posArr: new Float32Array(0)
 	, normalsArr: new Float32Array(0)
+	, uvArr: new Float32Array(0)
 	, indexArr: []
 }
 
@@ -88,6 +89,7 @@ function loadVertices() {
 	var nRows = 2 + numSplit;
 	earthData.posArr = new Float32Array(nVerts * 3);
 	earthData.normalsArr = new Float32Array(nVerts * 3);
+	earthData.uvArr = new Float32Array(nVerts * 3);
 	var inds = [];
 	var arrPos = 0;
 	for (var row = 0; row < nRows; ++row) {
@@ -104,11 +106,15 @@ function loadVertices() {
 				var vi = vertIndex(numSplit, row, col);
 				
 				var upCol = col - Math.floor(col / (nCols / 4));
+				var upDiv = (col + 1) % (nCols / 4);
 				var viUp = vertIndex(numSplit, row - 1, upCol);
 				var viR = vertIndex(numSplit, row, col + 1);
 				var viUpR = vertIndex(numSplit, row - 1, upCol + 1);
-				inds.push(vi, viUp, viR, viR, viUp, viUpR);
-				// console.log(vi, viUp, viR, viUpR);
+				inds.push(vi, viUp, viR);
+				if (upDiv != 0) {
+					inds.push(viR, viUp, viUpR);
+				}
+				// console.log(upDiv, vi, viUp, viR);
 			}
 		}
 	}
