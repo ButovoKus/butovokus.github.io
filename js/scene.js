@@ -3,14 +3,17 @@ function reloadBuffer(geometry) {
     loadVertices()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(earthData.posArr, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(earthData.normalsArr, 3));
+	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(earthData.uvArr, 2));
     geometry.setIndex(earthData.indexArr)
 }
 
 function vertexShader() {
   return `
-	varying vec3 norm;
+	out vec3 outNorm;
+	out vec2 outUV;
     void main() {
-	  norm = normal;
+	  outNorm = normal;
+	  outUV = uv;
 
       vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
       gl_Position = projectionMatrix * modelViewPosition; 
@@ -20,9 +23,12 @@ function vertexShader() {
 
 function fragmentShader() {
 return `
-	varying vec3 norm;
+	in vec3 outNorm;
+	in vec2 outUV;
+	
+	uniform sampler2D worldTexture; 
       void main() {
-        gl_FragColor = vec4(vec3(norm), 1.0);
+        gl_FragColor = texture(worldTexture, outUV);
       }
   `
 }
@@ -45,10 +51,21 @@ window.onload = function () {
     const geometry = new THREE.BufferGeometry();
     reloadBuffer(geometry);
 
+	const texture = new THREE.TextureLoader().load("./resources/textures/earth-4k.jpg")
+	texture.generateMipmaps = false
+	
+	var uniforms =  {
+		worldTexture: {
+			type: "t"
+			, value: texture
+		}
+	}
+	
     const material = new THREE.ShaderMaterial({
-		vertexShader: vertexShader(),
-		fragmentShader: fragmentShader()
-    });
+		vertexShader: vertexShader()
+		, fragmentShader: fragmentShader()
+		, uniforms: uniforms
+	});
 	
     const cube = new THREE.Mesh(geometry, material);
     scene.add(cube);
