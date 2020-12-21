@@ -1,6 +1,7 @@
 var earthData = {
-    splitNum: 1,
-    circular: 0.0,
+    splitNum: 500,
+    circular: 1.0,
+	mountainHeight: 0.0,
     posArr: new Float32Array(0),
     normalsArr: new Float32Array(0),
     uvArr: new Float32Array(0),
@@ -20,7 +21,7 @@ function angleBetween(v1, v2) {
 }
 
 function numVertices(numSplit) {
-    return 1 + 4 * sumn(numSplit + 1) + (numSplit + 1);
+    return (1 + 4 * sumn(numSplit + 1) + (numSplit + 1)) * 2 - numColumns(numSplit + 1) - 1;
 }
 
 function numColumns(row, numSplit) {
@@ -81,14 +82,14 @@ function vertIndex(numSplit, row, column) {
         return 0;
     }
     // if (column >= nCols) {
-        // column = column % nCols;
+    // column = column % nCols;
     // }
 
     return 1 + 4 * sumn(row - 1) + (row - 1) + column;
 }
 
 function loadVertices() {
-    var numSplit = Math.floor(earthData.splitNum)
+    var numSplit = Math.floor(earthData.splitNum);
     var nVerts = numVertices(numSplit);
     var nRows = 2 + numSplit;
     earthData.posArr = new Float32Array(nVerts * 3);
@@ -97,6 +98,9 @@ function loadVertices() {
     var inds = [];
     var arrPos = 0;
     var uvArrPos = 0;
+
+    console.log(nVerts)
+
     for (var row = 0; row < nRows; ++row) {
         var nCols = numColumns(row, numSplit);
         for (var col = 0; col <= nCols; ++col) {
@@ -106,21 +110,35 @@ function loadVertices() {
                 var pLength = pos.length();
                 pos.setLength(pLength + earthData.circular * (1.0 - pLength));
                 pos.toArray(earthData.posArr, arrPos);
+				var posN = new THREE.Vector3(pos.x, pos.y, pos.z);
+				posN.normalize();
+
+                var posDn = new THREE.Vector3(pos.x, pos.y, -pos.z);
 
                 // UV
                 var uvPos = pos;
                 var ang = angleBetween(new THREE.Vector2(0.0, -1.0), new THREE.Vector2(uvPos.x, uvPos.y));
-                // console.log(ang);
                 ang = ang / (2 * Math.PI);
-				if (col == nCols) {
-					ang = 1.0;
-				}
-                var uv = new THREE.Vector2(1.0 - pos.z, ang);
+                if (col == nCols) {
+                    ang = 1.0;
+                }
+                var uv = new THREE.Vector2(ang, posN.z / 2.0 + 0.5);
                 uv.toArray(earthData.uvArr, uvArrPos);
+                var uvDn = new THREE.Vector2(uv.x, 1.0 - uv.y);
 
                 // Normal
                 pos.normalize();
                 pos.toArray(earthData.normalsArr, arrPos);
+                normDn = pos;
+                normDn.z = pos.z - 1.0;
+                // normDn.toArray(earthData.normalsArr, nVerts * 3 - arrPos);
+
+                if (row != nRows - 1) {
+                    posDn.toArray(earthData.posArr, nVerts * 3 - arrPos - 3);
+                    uvDn.toArray(earthData.uvArr, nVerts * 2 - uvArrPos - 2);
+                    // normDn.toArray(earthData.posArr, nVerts * 3 - arrPos - 3);
+                }
+                // console.log(earthData.posArr)
 
                 arrPos += 3;
                 uvArrPos += 2;
@@ -128,13 +146,26 @@ function loadVertices() {
                     var vi = vertIndex(numSplit, row, col);
 
                     var upCol = col - Math.floor(col / (nCols / 4));
-                    var upDiv = (col + 1) % (nCols / 4);
                     var viUp = vertIndex(numSplit, row - 1, upCol);
                     var viR = vertIndex(numSplit, row, col + 1);
                     var viUpR = vertIndex(numSplit, row - 1, upCol + 1);
-                    inds.push(vi, viUp, viR);
+                    inds.push(viR, viUp, vi);
+
+                    var dnVi = nVerts - vi - 1;
+                    var dnViUp = nVerts - viUp - 1;
+                    var dnViR = nVerts - viR - 1;
+                    var dnViUpR = nVerts - viUpR - 1;
+					if (row == nRows - 1) {
+						dnVi = vi;
+						dnViR = viR;
+					}
+					
+                    inds.push(dnVi, dnViUp, dnViR);
+					
+                    var upDiv = (col + 1) % (nCols / 4);
                     if (upDiv != 0) {
-                        inds.push(viR, viUp, viUpR);
+                        inds.push(viUpR, viUp, viR);
+                        inds.push(dnViR, dnViUp, dnViUpR);
                     }
                 }
             }
