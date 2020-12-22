@@ -122,7 +122,7 @@ function loadVertices() {
                 if (col == nCols) {
                     ang = 1.0;
                 }
-                var uv = new THREE.Vector2(ang, posN.z / 2.0 + 0.5);
+                var uv = new THREE.Vector2(ang, (Math.PI / 2.0 + Math.asin(posN.z)) / Math.PI);
                 uv.toArray(earthData.uvArr, uvArrPos);
                 var uvDn = new THREE.Vector2(uv.x, 1.0 - uv.y);
 
