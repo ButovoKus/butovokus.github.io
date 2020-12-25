@@ -1,4 +1,4 @@
-const MAX_DATA_SIZE = 1000;
+const MAX_DATA_SIZE = 3000;
 const covidDataArray = new Array();
 var covidDataIndex = -1;
 
@@ -289,7 +289,7 @@ function covidVertexShader() {
 	
     void main() {
 		oCaseType = caseType;
-		const int lifeTime = 10000;
+		const int lifeTime = 2500;
 		if (worldTime < startTime || worldTime > startTime + lifeTime || caseType == 0) {
 			oDiscard = 1;
 			return;
