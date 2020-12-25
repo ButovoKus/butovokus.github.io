@@ -1,4 +1,4 @@
-const MAX_DATA_SIZE = 10000;
+const MAX_DATA_SIZE = 1000;
 const covidDataArray = new Array();
 var covidDataIndex = -1;
 
