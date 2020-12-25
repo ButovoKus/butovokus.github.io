@@ -1,3 +1,10 @@
+var sceneData = {
+    globalTime: 0,
+    covidGeometryCurrent: null,
+    covidGeometryNext: null,
+    ping: false
+}
+
 function reloadBuffer(geometry) {
     // geometry.dispose()
     loadVertices()
@@ -46,36 +53,37 @@ function fragmentShader() {
   `
 }
 
-function addCase(lat, lon, time) {
-    lon = lon + 90;
-    var zi = Math.sin(lat / 57.3);
-
-    var xi = Math.cos(lon / 57.3) * Math.cos(lat / 57.3);
-    var yi = Math.sin(lon / 57.3) * Math.cos(lat / 57.3);
-
-    var p0 = 3 * covidDataIndex;
-    covidPosData[p0] = xi;
-    covidPosData[p0 + 1] = yi;
-    covidPosData[p0 + 2] = zi;
-
-    covidTimeData[covidDataIndex] = time;
-
-    ++covidDataIndex;
-    if (covidDataIndex >= MAX_DATA_SIZE) {
-        covidDataIndex = 0
-    }
-}
-
 function randInRange(min, max) {
     return Math.random() * (max - min) + min;
 }
 
+function checkForUpdateArrays() {
+    if (arraysUpdated()) {
+        var d0 = covidDataArray[covidDataIndex];
+        if (sceneData.ping) {
+            updateGeometryAttributes(sceneData.covidGeometryCurrent, d0);
+        } else {
+            updateGeometryAttributes(sceneData.covidGeometryNext, d0);
+        }
+    }
+}
+
+function updateGeometryAttributes(geometry, newAttributeData) {
+    console.log(geometry, newAttributeData);
+    geometry.attributes.startPos.set(newAttributeData.posArr);
+    geometry.attributes.startTime.set(newAttributeData.timeArr);
+    geometry.attributes.caseType.set(newAttributeData.typeArr);
+    geometry.attributes.startPos.needsUpdate = true;
+    geometry.attributes.startTime.needsUpdate = true;
+    geometry.attributes.caseType.needsUpdate = true;
+    sceneData.ping = !sceneData.ping;
+}
+
 window.onload = function () {
-    var globalTime = 0.0;
 
     const gui = new dat.GUI();
-    // var splitNumSlider = gui.add(earthData, 'splitNum').min(0).max(1000);
-    // var circularSlider = gui.add(earthData, 'circular').min(0.0).max(1.0).step(0.001);
+    var splitNumSlider = gui.add(earthData, 'splitNum').min(0).max(1000);
+    var circularSlider = gui.add(earthData, 'circular').min(0.0).max(1.0).step(0.001);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -113,8 +121,8 @@ window.onload = function () {
             value: earthData.mountainHeight
         },
         worldTime: {
-            type: "f",
-            value: 0.0
+            type: "i",
+            value: 0
         }
     }
     var mountainHeightSlider = gui.add(uniforms.mountainHeight, 'value').min(0.0).max(1.0).step(0.001);
@@ -136,32 +144,51 @@ window.onload = function () {
 
     console.log("CHANGED2");
 
-    var covidMesh = null;
+    var covidMaterial = new THREE.ShaderMaterial({
+        vertexShader: covidVertexShader(),
+        fragmentShader: covidFragmentShader(),
+        uniforms,
+        side: THREE.DoubleSide,
+        transparent: false
+    });
+    covidMaterial.blending = THREE.CustomBlending;
+    covidMaterial.blendEquation = THREE.AddEquation; //default
+    covidMaterial.blendSrc = THREE.SrcAlphaFactor; //default
+    covidMaterial.blendDst = THREE.OneMinusSrcAlphaFactor; //default
+
+    var covidMeshCurrent = null;
+    var covidMeshNext = null;
 
     const loader = new THREE.GLTFLoader();
     loader.load('./resources/assets/covid.glb', function (gltf) {
         console.log("LOADED");
         var geom = gltf.scene.children[2].geometry;
-        var covidGeom = new THREE.InstancedBufferGeometry().copy(geom);
-        covidGeom.setAttribute("startPos", new THREE.InstancedBufferAttribute(covidPosData, 3));
-        covidGeom.setAttribute("startTime", new THREE.InstancedBufferAttribute(covidTimeData, 1));
-        var mat = new THREE.ShaderMaterial({
-            vertexShader: covidVertexShader(),
-            fragmentShader: covidFragmentShader(),
-            uniforms,
-            side: THREE.DoubleSide,
-            transparent: false
-        });
-        covidMesh = new THREE.InstancedMesh(covidGeom, mat, MAX_DATA_SIZE);
-        scene.add(covidMesh);
+        sceneData.covidGeometryCurrent = new THREE.InstancedBufferGeometry().copy(geom);
+        sceneData.covidGeometryNext = new THREE.InstancedBufferGeometry().copy(geom);
+        sceneData.covidGeometryCurrent.setAttribute("startPos", new THREE.InstancedBufferAttribute(new Float32Array(MAX_DATA_SIZE * 3), 3));
+        sceneData.covidGeometryCurrent.setAttribute("startTime", new THREE.InstancedBufferAttribute(new Int32Array(MAX_DATA_SIZE), 1));
+        sceneData.covidGeometryCurrent.setAttribute("caseType", new THREE.InstancedBufferAttribute(new Int32Array(MAX_DATA_SIZE), 1));
+        sceneData.covidGeometryNext.setAttribute("startPos", new THREE.InstancedBufferAttribute(new Float32Array(MAX_DATA_SIZE * 3), 3));
+        sceneData.covidGeometryNext.setAttribute("startTime", new THREE.InstancedBufferAttribute(new Int32Array(MAX_DATA_SIZE), 1));
+        sceneData.covidGeometryNext.setAttribute("caseType", new THREE.InstancedBufferAttribute(new Int32Array(MAX_DATA_SIZE), 1));
+        covidMeshCurrent = new THREE.InstancedMesh(sceneData.covidGeometryCurrent, covidMaterial, MAX_DATA_SIZE);
+        covidMeshNext = new THREE.InstancedMesh(sceneData.covidGeometryNext, covidMaterial, MAX_DATA_SIZE);
+        scene.add(covidMeshCurrent);
+        scene.add(covidMeshNext);
     }, undefined, function (error) {
         console.log(error)
     });
 
-    var date = new Date(2020, 8, 10);
+    var date = new Date(2020, 11, 20);
     loadCovidData(date);
 
+    var stats = new Stats();
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+    document.body.appendChild(stats.dom);
+
     const animate = function () {
+        stats.begin();
+
         requestAnimationFrame(animate);
 
         // cube.rotation.x += 0.01;
@@ -171,32 +198,36 @@ window.onload = function () {
         // covidMesh.rotation.z += 0.01;
         // }
 
-        globalTime += 1.0 / 60.0;
-        uniforms.worldTime.value = globalTime;
+        sceneData.globalTime += 10;
+        uniforms.worldTime.value = sceneData.globalTime;
 
-        if (randInRange(0.0, 1.0) > 0.3) {
-            var lat = randInRange(-90, 90);
-            var lon = randInRange(-180.0, 180.0);
-            var t = globalTime;
-            addCase(lat, lon, t);
-            if (covidMesh != null) {
-                covidMesh.geometry.attributes.startPos.needsUpdate = true;
-                covidMesh.geometry.attributes.startTime.needsUpdate = true;
-            }
-        }
+        // if (randInRange(0.0, 1.0) > 0.3) {
+        // var lat = randInRange(-90, 90);
+        // var lon = randInRange(-180.0, 180.0);
+        // var t = globalTime;
+        // addCase(lat, lon, t);
+        // if (covidMesh != null) {
+        // covidMesh.geometry.attributes.startPos.needsUpdate = true;
+        // covidMesh.geometry.attributes.startTime.needsUpdate = true;
+        // }
+        // }
+
+        checkForUpdateArrays();
 
         renderer.render(scene, camera);
+
+        stats.end();
 
     };
 
     animate();
 
-    // splitNumSlider.onChange(function (value) {
-    // reloadBuffer(geometry);
-    // });
+    splitNumSlider.onChange(function (value) {
+        reloadBuffer(geometry);
+    });
 
-    // circularSlider.onChange(function (value) {
-    // reloadBuffer(geometry);
-    // });
+    circularSlider.onChange(function (value) {
+        reloadBuffer(geometry);
+    });
 
 }

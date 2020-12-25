@@ -21,12 +21,12 @@ function angleBetween(v1, v2) {
 }
 
 function numVertices(numSplit) {
-    return (1 + 4 * sumn(numSplit + 1) + (numSplit + 1)) * 2 - numColumns(numSplit + 1) - 1;
+    return (5 + 4 * sumn(numSplit + 1) + (numSplit + 1)) * 2 - numColumns(numSplit + 1) - 1;
 }
 
 function numColumns(row, numSplit) {
     if (row == 0) {
-        return 1;
+        return 5;
     }
     return 4 * row;
 }
@@ -79,13 +79,13 @@ function vertexBarycentric(row, column, numSplit) {
 
 function vertIndex(numSplit, row, column) {
     if (row == 0) {
-        return 0;
+        return column;
     }
     // if (column >= nCols) {
     // column = column % nCols;
     // }
 
-    return 1 + 4 * sumn(row - 1) + (row - 1) + column;
+    return 5 + 4 * sumn(row - 1) + (row - 1) + column;
 }
 
 function loadVertices() {
@@ -98,8 +98,6 @@ function loadVertices() {
     var inds = [];
     var arrPos = 0;
     var uvArrPos = 0;
-
-    console.log(nVerts)
 
     for (var row = 0; row < nRows; ++row) {
         var nCols = numColumns(row, numSplit);
@@ -118,6 +116,9 @@ function loadVertices() {
                 // UV
                 var uvPos = pos;
                 var ang = angleBetween(new THREE.Vector2(0.0, -1.0), new THREE.Vector2(uvPos.x, uvPos.y));
+				if (row == 0) {
+					ang = 2 * Math.PI * col / 4.0;
+				}
                 ang = ang / (2 * Math.PI);
                 if (col == nCols) {
                     ang = 1.0;
@@ -142,13 +143,22 @@ function loadVertices() {
 
                 arrPos += 3;
                 uvArrPos += 2;
-                if (row > 0 && col != nCols) {
+                if (row > 0) {
                     var vi = vertIndex(numSplit, row, col);
 
                     var upCol = col - Math.floor(col / (nCols / 4));
+					if (row == 1) {
+						upCol = col;
+					}
                     var viUp = vertIndex(numSplit, row - 1, upCol);
                     var viR = vertIndex(numSplit, row, col + 1);
                     var viUpR = vertIndex(numSplit, row - 1, upCol + 1);
+					
+					if (col == nCols) {
+						viR = vertIndex(numSplit, row, 0);
+						viUpR = vertIndex(numSplit, row - 1, 0);
+					}
+					
                     inds.push(viR, viUp, vi);
 
                     var dnVi = nVerts - vi - 1;
