@@ -1,8 +1,13 @@
 var sceneData = {
-    globalTime: 0,
+    globalTime: 0.0,
+	realTime: 0.0,
     covidGeometryCurrent: null,
     covidGeometryNext: null,
-    ping: false
+    ping: false,
+	timeMultiplier: 1.0,
+	sumConf: 0,
+	sumRecov: 0,
+	sumDead:0,
 }
 
 function reloadBuffer(geometry) {
@@ -81,16 +86,26 @@ function updateGeometryAttributes(geometry, newAttributeData) {
 
 window.onload = function () {
 
+	const container = document.getElementById('container')
+	document.body.appendChild(container);
+	
+	const timeDiv = document.getElementById('timeTd')
+	const confSpan = document.getElementById('confSpan')
+	const recovSpan = document.getElementById('recovSpan')
+	const deadSpan = document.getElementById('deadSpan')
+
     const gui = new dat.GUI();
     var splitNumSlider = gui.add(earthData, 'splitNum').min(0).max(1000);
     var circularSlider = gui.add(earthData, 'circular').min(0.0).max(1.0).step(0.001);
+	var timeMultiplierSlider = gui.add(sceneData, 'timeMultiplier').min(1.0).max(1000.0).step(1.0);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+	renderer.outputEncoding = THREE.sRGBEncoding;
+    container.appendChild(renderer.domElement);
 
     const color = 0xFFFFFF;
     const intensity = 1;
@@ -123,6 +138,14 @@ window.onload = function () {
         worldTime: {
             type: "i",
             value: 0
+        },
+		realTime: {
+            type: "f",
+            value: 0.0
+        },
+		timeMultiplier: {
+            type: "f",
+            value: 0.0
         }
     }
     var mountainHeightSlider = gui.add(uniforms.mountainHeight, 'value').min(0.0).max(1.0).step(0.001);
@@ -179,12 +202,13 @@ window.onload = function () {
         console.log(error)
     });
 
-    var date = new Date(2020, 11, 20);
+    var date = new Date(2020, 11, 23);
     loadCovidData(date);
 
     var stats = new Stats();
-    stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-    document.body.appendChild(stats.dom);
+    container.appendChild(stats.dom);
+
+    const controlUI = document.createElement("div");
 
     const animate = function () {
         stats.begin();
@@ -198,8 +222,19 @@ window.onload = function () {
         // covidMesh.rotation.z += 0.01;
         // }
 
-        sceneData.globalTime += 10;
+        sceneData.globalTime += 1.0/6.0 * sceneData.timeMultiplier;
+		sceneData.realTime += 1.0 / 60.0;
         uniforms.worldTime.value = sceneData.globalTime;
+		uniforms.realTime.value = sceneData.realTime;
+		
+		var d1 = new Date(date);
+		d1.setDate(date.getDate());
+		d1.setSeconds(sceneData.globalTime / 10.0);
+		
+		timeDiv.innerHTML = d1.toUTCString()
+		confSpan.innerHTML = Math.round(1.0 * sceneData.sumConf * sceneData.globalTime / 864000)
+		recovSpan.innerHTML = Math.round(1.0 * sceneData.sumRecov * sceneData.globalTime / 864000)
+		deadSpan.innerHTML = Math.round(1.0 * sceneData.sumDead * sceneData.globalTime / 864000)
 
         // if (randInRange(0.0, 1.0) > 0.3) {
         // var lat = randInRange(-90, 90);
@@ -229,5 +264,9 @@ window.onload = function () {
     circularSlider.onChange(function (value) {
         reloadBuffer(geometry);
     });
+	
+	timeMultiplierSlider.onChange(function (value) {
+		uniforms.timeMultiplier.value = value;
+	});
 
 }

@@ -1,4 +1,4 @@
-const MAX_DATA_SIZE = 3000;
+const MAX_DATA_SIZE = 10000;
 const covidDataArray = new Array();
 var covidDataIndex = -1;
 
@@ -87,18 +87,18 @@ function processDay() {
         }
         var step = Math.round(mseconds / num);
         var start = Math.round(randInRange(0.0, step));
-        for (var i = start; i < mseconds; i += step) {
-            if (preArr[i] == undefined) {
-                preArr[i] = new Array();
+		for (var i = 0; i < num; ++i) {
+			var k = parseInt(Math.round(randInRange(0, mseconds)));
+			if (preArr[k] == undefined) {
+                preArr[k] = new Array();
             }
-
-            preArr[i].push(new Object({
+			preArr[k].push(new Object({
                     'lat': lat0 + randInRange(-2, 2),
                     'lon': lon0 + randInRange(-2, 2),
-                    't': i,
+                    't': k,
                     'dataType': dType
                 }));
-        }
+		}
     }
 
     for (var k of Object.keys(selectedDayData)) {
@@ -122,6 +122,10 @@ function processDay() {
             fillFn(dConf, 1);
             fillFn(dDead, 3);
             fillFn(dRecov, 2);
+			
+			sceneData.sumConf += dConf;
+			sceneData.sumDead += dDead;
+			sceneData.sumRecov += dRecov;
         }
     }
 
@@ -170,7 +174,6 @@ function processDay() {
         'typeArr': typeArr
     });
 	covidDataArray.push(covidChunk);
-    console.log(covidDataArray);
 }
 
 function globDataForDate(date, dataObj) {
@@ -286,26 +289,29 @@ function covidVertexShader() {
 	attribute int caseType;
 	
 	uniform int worldTime;
+	uniform float realTime;
+	uniform float timeMultiplier;
 	
     void main() {
+		int wt = worldTime;
 		oCaseType = caseType;
-		const int lifeTime = 2500;
-		if (worldTime < startTime || worldTime > startTime + lifeTime || caseType == 0) {
+		int lifeTime = 10000;
+		if (wt < startTime || wt > startTime + lifeTime || caseType == 0) {
 			oDiscard = 1;
 			return;
 		}
-		float dt = float(worldTime - startTime);
+		float dt = float(wt - startTime);
 		damping = (1.0 - dt / float(lifeTime));
 		float shift = 0.0;
 		if (caseType == 3) {
-			shift = (1.0 - damping) * 3.0;
+			shift = dt / float(lifeTime); // 0.0 - 1.0
 		}
 		oDiscard = 0;
 		float scale = 0.001;
 		if (caseType == 3) {
 			scale = 0.002;
 		}
-      vec4 modelViewPosition = modelViewMatrix * vec4(position * scale + startPos * (1.0 + shift), 1.0);
+      vec4 modelViewPosition = modelViewMatrix * vec4(position * scale + startPos * (1.0 + shift * 4.0), 1.0);
       gl_Position = projectionMatrix * modelViewPosition; 
     }
   `

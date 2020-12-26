@@ -2,11 +2,36 @@
 <html>
 	<head>
 		<title>My first three.js app</title>
+		<link type="text/css" rel="stylesheet" href="main.css">
 		<style>
-			body { margin: 0; }
+			a {
+				color: white;
+			}
+			h1{
+				text-align: center;
+				color: white;
+				width: 100%;
+			}
+			.ac {  /* prevent dat-gui from being selected */
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+			}
+			.control-inactive {
+				color: #888;
+			}
 		</style>
 	</head>
 	<body>
+		<div id="container" style="position: relative">
+			<div id="info" style="position: absolute; width:100%" width="auto">
+				<h1>Current Time: <span id="timeTd">234</span></h1>
+				<h1 style="color:red">Confirmed Cases: <span id="confSpan">234</span></h1>
+				<h1 style="color:green">Recover Cases: <span id="recovSpan">234</span></h1>
+				<h1 style="color:white">Dead Cases: <span id="deadSpan">234</span></h1>
+			</div>
+		</div>
 		<script src="js/thirdparty/three.js"></script>
 		<script src="js/thirdparty/dat.gui.js"></script>
 		<script src="js/thirdparty/stats.js"></script>
